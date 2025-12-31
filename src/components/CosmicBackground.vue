@@ -17,7 +17,7 @@ interface Star {
 }
 
 const stars: Star[] = [];
-const STAR_COUNT = 150;
+const STAR_COUNT = 125; // 150-dən 125-ə endirildi (1/6 azaltıldı)
 const CONNECTION_DISTANCE = 200; // Məsafə artırıldı (150-dən 200-ə)
 
 onMounted(() => {
@@ -79,16 +79,61 @@ onMounted(() => {
       ctx.fill();
     });
 
-    // Ulduz topaları (constellations) - Yalnız parlaq ulduzlar arasında xətt çək
+    // Toqquşma (collision) tespiti ve həlli
+    for (let i = 0; i < stars.length; i++) {
+      const s1 = stars[i];
+      if (!s1) continue;
+      
+      for (let j = i + 1; j < stars.length; j++) {
+        const s2 = stars[j];
+        if (!s2) continue;
+        
+        const dx = s2.x - s1.x;
+        const dy = s2.y - s1.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const minDistance = s1.size + s2.size;
+
+        if (distance < minDistance) {
+          // Toqquşma baş verdi - sürətlərin dəyişdirilməsi (bounce effect)
+          const angle = Math.atan2(dy, dx);
+          const sin = Math.sin(angle);
+          const cos = Math.cos(angle);
+
+          // Mövqeləri bir-birindən ayır (yapışmamaq üçün)
+          const overlap = minDistance - distance;
+          const separationX = (overlap / 2) * cos;
+          const separationY = (overlap / 2) * sin;
+          
+          s1.x -= separationX;
+          s1.y -= separationY;
+          s2.x += separationX;
+          s2.y += separationY;
+
+          // Sürətləri əks istiqamətə çevir
+          const vx1 = s1.vx * cos + s1.vy * sin;
+          const vy1 = s1.vy * cos - s1.vx * sin;
+          const vx2 = s2.vx * cos + s2.vy * sin;
+          const vy2 = s2.vy * cos - s2.vx * sin;
+
+          s1.vx = vx2 * cos - vy1 * sin;
+          s1.vy = vy1 * cos + vx2 * sin;
+          s2.vx = vx1 * cos - vy2 * sin;
+          s2.vy = vy2 * cos + vx1 * sin;
+        }
+      }
+    }
+
+    // Ulduz topaları (constellations)
     ctx.shadowBlur = 0;
     for (let i = 0; i < stars.length; i++) {
       const s1 = stars[i];
+      if (!s1) continue;
       const opacity1 = (Math.sin(s1.twinklePhase) + 1) / 2;
       
-      // Daha tez birləşməsi üçün limit 0.8-dən 0.6-ya salındı
       if (opacity1 > 0.6) {
         for (let j = i + 1; j < stars.length; j++) {
           const s2 = stars[j];
+          if (!s2) continue;
           const opacity2 = (Math.sin(s2.twinklePhase) + 1) / 2;
           
           if (opacity2 > 0.6) {
@@ -98,7 +143,6 @@ onMounted(() => {
 
             if (distSq < CONNECTION_DISTANCE * CONNECTION_DISTANCE) {
               const dist = Math.sqrt(distSq);
-              // Xəttin görünürlüyü artırıldı
               const lineOpacity = (1 - dist / CONNECTION_DISTANCE) * (opacity1 + opacity2 - 1.2) * 1.5;
               if (lineOpacity > 0) {
                 ctx.beginPath();

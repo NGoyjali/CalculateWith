@@ -46,7 +46,10 @@ body {
 
 .app-container {
   position: relative;
-  z-index: 1; /* Məzmunu ulduzların önünə çıxarır */
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 #app {
@@ -64,15 +67,13 @@ body {
 }
 
 .main-content {
-  min-height: calc(100vh - 120px);
+  flex: 1;
   transition: transform 0.3s ease;
   padding-top: 0;
   margin-top: 0;
 }
 
-.main-content.menu-open {
-  transform: translateY(200px);
-}
+
 
 .footer {
   text-align: center;

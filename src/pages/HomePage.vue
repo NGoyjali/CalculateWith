@@ -27,7 +27,6 @@ const router = useRouter();
 <style scoped>
 .home-page {
   position: relative;
-  min-height: calc(100vh - 64px);
   display: flex;
   align-items: flex-start;
   justify-content: center;
