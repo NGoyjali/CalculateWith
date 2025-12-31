@@ -1,37 +1,144 @@
 <script setup lang="ts">
-const getRandomStarStyle = () => {
-  const size = Math.random() * 3 + 1 + 'px'; // Biraz daha böyük
-  const duration = Math.random() * 20 + 10 + 's';
-  const delay = Math.random() * -20 + 's';
-  
-  return {
-    left: Math.random() * 100 + '%',
-    top: Math.random() * 100 + '%',
-    width: size,
-    height: size,
-    '--move-duration': duration,
-    '--move-delay': delay,
-    '--twinkle-duration': (Math.random() * 2 + 1) + 's',
-    '--dest-x': (Math.random() * 300 - 150) + 'px',
-    '--dest-y': (Math.random() * 300 - 150) + 'px'
-  };
-};
+import { onMounted, onUnmounted, ref } from 'vue';
 
-const getRandomShootingStarStyle = () => {
-  return {
-    top: Math.random() * 50 + '%',
-    left: Math.random() * 100 + '%',
-    animationDelay: Math.random() * 20 + 's',
-    animationDuration: (Math.random() * 4 + 3) + 's' // Sürət yarıya endirildi (əvvəl 2+1.5 idi)
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+
+interface Star {
+  x: number;
+  y: number;
+  size: number;
+  twinkleSpeed: number;
+  twinklePhase: number;
+  vx: number;
+  vy: number;
+  baseX: number;
+  baseY: number;
+  range: number;
+}
+
+const stars: Star[] = [];
+const STAR_COUNT = 150;
+const CONNECTION_DISTANCE = 200; // Məsafə artırıldı (150-dən 200-ə)
+
+onMounted(() => {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const resize = () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
   };
-};
+
+  const initStars = () => {
+    stars.length = 0;
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      stars.push({
+        x: x,
+        y: y,
+        baseX: x,
+        baseY: y,
+        size: Math.random() * 3 + 1, // Ölçü böyüdüldü (0.5-2.5-dən 1-4-ə)
+        twinkleSpeed: 0.01 + Math.random() * 0.02, // Bir az daha yavaş parıltı
+        twinklePhase: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.15,
+        range: 50 + Math.random() * 100
+      });
+    }
+  };
+
+  let animationFrame: number;
+  const animate = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Ulduzları yenilə və çək
+    stars.forEach(star => {
+      star.twinklePhase += star.twinkleSpeed;
+      const opacity = (Math.sin(star.twinklePhase) + 1) / 2; // 0-1 arası
+      
+      // Hərəkət
+      star.x += star.vx;
+      star.y += star.vy;
+      
+      // Sərhədlərdən qayıtma və ya yenidən yaranma
+      if (star.x < 0) star.x = canvas.width;
+      if (star.x > canvas.width) star.x = 0;
+      if (star.y < 0) star.y = canvas.height;
+      if (star.y > canvas.height) star.y = 0;
+
+      // Parıltı effekti
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size * (0.8 + opacity * 0.4), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + opacity * 0.7})`;
+      ctx.shadowBlur = opacity * 10;
+      ctx.shadowColor = 'white';
+      ctx.fill();
+    });
+
+    // Ulduz topaları (constellations) - Yalnız parlaq ulduzlar arasında xətt çək
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < stars.length; i++) {
+      const s1 = stars[i];
+      const opacity1 = (Math.sin(s1.twinklePhase) + 1) / 2;
+      
+      // Daha tez birləşməsi üçün limit 0.8-dən 0.6-ya salındı
+      if (opacity1 > 0.6) {
+        for (let j = i + 1; j < stars.length; j++) {
+          const s2 = stars[j];
+          const opacity2 = (Math.sin(s2.twinklePhase) + 1) / 2;
+          
+          if (opacity2 > 0.6) {
+            const dx = s1.x - s2.x;
+            const dy = s1.y - s2.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < CONNECTION_DISTANCE * CONNECTION_DISTANCE) {
+              const dist = Math.sqrt(distSq);
+              // Xəttin görünürlüyü artırıldı
+              const lineOpacity = (1 - dist / CONNECTION_DISTANCE) * (opacity1 + opacity2 - 1.2) * 1.5;
+              if (lineOpacity > 0) {
+                ctx.beginPath();
+                ctx.moveTo(s1.x, s1.y);
+                ctx.lineTo(s2.x, s2.y);
+                ctx.strokeStyle = `rgba(165, 180, 252, ${lineOpacity * 0.6})`;
+                ctx.lineWidth = 0.8;
+                ctx.stroke();
+              }
+            }
+          }
+        }
+      }
+    }
+
+    animationFrame = requestAnimationFrame(animate);
+  };
+
+  window.addEventListener('resize', resize);
+  resize();
+  initStars();
+  animate();
+
+  onUnmounted(() => {
+    window.removeEventListener('resize', resize);
+    cancelAnimationFrame(animationFrame);
+  });
+});
 </script>
 
 <template>
   <div class="cosmic-container">
     <div class="cosmic-bg"></div>
-    <div v-for="n in 250" :key="'ls'+n" class="star" :style="getRandomStarStyle()"></div>
-    <div v-for="n in 10" :key="'lss'+n" class="shooting-star" :style="getRandomShootingStarStyle()"></div>
+    <canvas ref="canvasRef"></canvas>
+    <div v-for="n in 5" :key="'lss'+n" class="shooting-star" :style="{
+      top: Math.random() * 50 + '%',
+      left: Math.random() * 100 + '%',
+      animationDelay: Math.random() * 20 + 's',
+      animationDuration: (Math.random() * 4 + 3) + 's'
+    }"></div>
   </div>
 </template>
 
@@ -57,17 +164,12 @@ const getRandomShootingStarStyle = () => {
   z-index: -2;
 }
 
-.star {
+canvas {
   position: absolute;
-  background-color: #ffffff;
-  border-radius: 50%;
-  opacity: 1;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
-  z-index: -1;
-  animation: 
-    twinkle var(--twinkle-duration) infinite ease-in-out,
-    move-star var(--move-duration) infinite linear;
-  animation-delay: var(--move-delay);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .shooting-star {
@@ -78,7 +180,7 @@ const getRandomShootingStarStyle = () => {
   border-radius: 50%;
   opacity: 0;
   z-index: -1;
-  animation: shoot 10s infinite; /* Döngü müddəti 6s-dan 10s-a qaldırıldı */
+  animation: shoot 10s infinite;
 }
 
 .shooting-star::after {
@@ -97,15 +199,5 @@ const getRandomShootingStarStyle = () => {
   5% { opacity: 1; }
   20% { transform: translate(-800px, 800px) rotate(-45deg); opacity: 0; }
   100% { transform: translate(-800px, 800px) rotate(-45deg); opacity: 0; }
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.4); }
-}
-
-@keyframes move-star {
-  from { transform: translate(0, 0); }
-  to { transform: translate(var(--dest-x), var(--dest-y)); }
 }
 </style>
