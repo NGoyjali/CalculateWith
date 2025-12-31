@@ -142,15 +142,38 @@ onMounted(() => {
             const distSq = dx * dx + dy * dy;
 
             if (distSq < CONNECTION_DISTANCE * CONNECTION_DISTANCE) {
-              const dist = Math.sqrt(distSq);
-              const lineOpacity = (1 - dist / CONNECTION_DISTANCE) * (opacity1 + opacity2 - 1.2) * 1.5;
-              if (lineOpacity > 0) {
-                ctx.beginPath();
-                ctx.moveTo(s1.x, s1.y);
-                ctx.lineTo(s2.x, s2.y);
-                ctx.strokeStyle = `rgba(165, 180, 252, ${lineOpacity * 0.6})`;
-                ctx.lineWidth = 0.8;
-                ctx.stroke();
+              // RNG (Relative Neighborhood Graph) yoxlaması - Kəsişmələri önləyir
+              let isRNG = true;
+              for (let k = 0; k < stars.length; k++) {
+                if (k === i || k === j) continue;
+                const sk = stars[k];
+                if (!sk) continue;
+                
+                const dxk1 = s1.x - sk.x;
+                const dyk1 = s1.y - sk.y;
+                const d1kSq = dxk1 * dxk1 + dyk1 * dyk1;
+                
+                const dxk2 = s2.x - sk.x;
+                const dyk2 = s2.y - sk.y;
+                const d2kSq = dxk2 * dxk2 + dyk2 * dyk2;
+                
+                if (d1kSq < distSq && d2kSq < distSq) {
+                  isRNG = false;
+                  break;
+                }
+              }
+
+              if (isRNG) {
+                const dist = Math.sqrt(distSq);
+                const lineOpacity = (1 - dist / CONNECTION_DISTANCE) * (opacity1 + opacity2 - 1.2) * 1.5;
+                if (lineOpacity > 0) {
+                  ctx.beginPath();
+                  ctx.moveTo(s1.x, s1.y);
+                  ctx.lineTo(s2.x, s2.y);
+                  ctx.strokeStyle = `rgba(165, 180, 252, ${lineOpacity * 0.6})`;
+                  ctx.lineWidth = 0.8;
+                  ctx.stroke();
+                }
               }
             }
           }
