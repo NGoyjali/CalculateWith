@@ -4,6 +4,9 @@ import { ref, computed, watch, onMounted } from 'vue';
 const alisKiloQiymet = ref<number | null>(null);
 const satisQiymeti = ref<number | null>(null);
 const satisKilo = ref<number | null>(null);
+const adetAgirligi = ref<number | null>(null);
+const adet = ref<number | null>(null);
+const isKiloFocused = ref(false);
 const hideBuyingPrice = ref(false);
 
 interface SavedEntry {
@@ -28,37 +31,73 @@ onMounted(() => {
   const savedAlis = localStorage.getItem('polymer_alis_kilo_qiymet');
   const savedSatisQiymet = localStorage.getItem('polymer_satis_qiymeti');
   const savedSatisKilo = localStorage.getItem('polymer_satis_kilo');
+  const savedAdetAgirligi = localStorage.getItem('polymer_adet_agirligi');
+  const savedAdet = localStorage.getItem('polymer_adet');
   const savedHide = localStorage.getItem('polymer_hide_buying_price');
   const history = localStorage.getItem('polymer_history');
 
   if (savedAlis) alisKiloQiymet.value = parseFloat(savedAlis);
   if (savedSatisQiymet) satisQiymeti.value = parseFloat(savedSatisQiymet);
   if (savedSatisKilo) satisKilo.value = parseFloat(savedSatisKilo);
+  if (savedAdetAgirligi) adetAgirligi.value = parseFloat(savedAdetAgirligi);
+  if (savedAdet) adet.value = parseFloat(savedAdet);
   if (savedHide) hideBuyingPrice.value = savedHide === 'true';
   if (history) savedEntries.value = JSON.parse(history);
 });
 
 // Məlumatları yaddaşa yazmaq (Müvəqqəti daxiletmələr)
-watch([alisKiloQiymet, satisQiymeti, satisKilo, hideBuyingPrice], () => {
+watch([alisKiloQiymet, satisQiymeti, satisKilo, adetAgirligi, adet, hideBuyingPrice], () => {
   if (alisKiloQiymet.value !== null) localStorage.setItem('polymer_alis_kilo_qiymet', alisKiloQiymet.value.toString());
   if (satisQiymeti.value !== null) localStorage.setItem('polymer_satis_qiymeti', satisQiymeti.value.toString());
   if (satisKilo.value !== null) localStorage.setItem('polymer_satis_kilo', satisKilo.value.toString());
+  if (adetAgirligi.value !== null) localStorage.setItem('polymer_adet_agirligi', adetAgirligi.value.toString());
+  if (adet.value !== null) localStorage.setItem('polymer_adet', adet.value.toString());
   localStorage.setItem('polymer_hide_buying_price', hideBuyingPrice.value.toString());
 });
 
+// 1. Satış kq və ya Ədəd çəkisi dəyişdikdə -> Ədəd hesablanır
+watch([satisKilo, adetAgirligi], ([newKilo, newGram], [oldKilo, oldGram]) => {
+  // Yalnız satisKilo və ya adetAgirligi əllə dəyişdirildikdə Ədədi yenilə
+  if (newKilo !== oldKilo || newGram !== oldGram) {
+    if (newKilo && newGram && newGram > 0) {
+      const calculatedAdet = Math.round((newKilo * 1000) / newGram);
+      if (adet.value !== calculatedAdet) {
+        adet.value = calculatedAdet;
+      }
+    } else if (!newGram || newGram === 0) {
+      adet.value = null;
+    }
+  }
+});
+
+// 2. Ədəd dəyişdikdə -> Satış kq hesablanır (Əgər Satış kq fokusda deyilsə)
+watch(adet, (newAdet, oldAdet) => {
+  if (!isKiloFocused.value && newAdet !== oldAdet && newAdet && adetAgirligi.value) {
+    const calculatedKilo = (newAdet * adetAgirligi.value) / 1000;
+    if (Math.abs((satisKilo.value || 0) - calculatedKilo) > 0.0001) {
+      satisKilo.value = calculatedKilo;
+    }
+  }
+});
+
+
+const effectiveKilo = computed(() => {
+  return satisKilo.value || 0;
+});
+
 const totalBuy = computed(() => {
-  if (alisKiloQiymet.value === null || satisKilo.value === null) return 0;
-  return alisKiloQiymet.value * satisKilo.value;
+  if (alisKiloQiymet.value === null || effectiveKilo.value === 0) return 0;
+  return alisKiloQiymet.value * effectiveKilo.value;
 });
 
 const totalSale = computed(() => {
-  if (satisQiymeti.value === null || satisKilo.value === null) return 0;
-  return satisQiymeti.value * satisKilo.value;
+  if (satisQiymeti.value === null || effectiveKilo.value === 0) return 0;
+  return satisQiymeti.value * effectiveKilo.value;
 });
 
 const profit = computed(() => {
-  if (totalSale.value === 0 || totalBuy.value === 0) return 0;
-  return (totalSale.value - totalBuy.value).toFixed(2);
+  const diff = (totalSale.value || 0) - (totalBuy.value || 0);
+  return diff.toFixed(2);
 });
 
 const saveToHistory = () => {
@@ -72,7 +111,7 @@ const confirmSave = () => {
     date: new Date().toLocaleString('az-AZ', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }),
     alis: alisKiloQiymet.value, // Həmişə yadda saxla, gizli olsa belə
     satis: satisQiymeti.value,
-    miqdar: satisKilo.value,
+    miqdar: effectiveKilo.value,
     totalSale: totalSale.value,
     profit: profit.value.toString(),
     customerName: customerName.value,
@@ -145,25 +184,46 @@ const confirmSave = () => {
           </div>
 
           <div class="input-group">
-            <label>Satış  (kq)</label>
+            <label>Satış (kq)</label>
             <input 
               type="number" 
               v-model="satisKilo" 
               placeholder="Məsələn: 100"
+              step="0.001"
+              @focus="isKiloFocused = true"
+              @blur="isKiloFocused = false"
+            >
+          </div>
+
+          <div class="input-group">
+            <label>Ədəd çəkisi (qr)</label>
+            <input 
+              type="number" 
+              v-model="adetAgirligi" 
+              placeholder="Məsələn: 25"
+            >
+          </div>
+
+          <div class="input-group">
+            <label>Ədəd</label>
+            <input 
+              type="number" 
+              v-model="adet" 
+              placeholder="Məsələn: 1000"
             >
           </div>
         </div>
 
-        <div class="result-box" v-if="totalSale > 0">
+        <div class="result-box">
           <div class="result-row">
             <span class="result-label">Ümumi Satış</span>
-            <div class="result-value">{{ totalSale.toFixed(2) }} ₼</div>
+            <div class="result-value">{{ (totalSale || 0).toFixed(2) }} ₼</div>
           </div>
           
-          <div class="result-row profit-row" v-if="!hideBuyingPrice && profit != 0">
+          <div class="result-row profit-row" v-if="!hideBuyingPrice">
             <span class="result-label small">Xalis Mənfəət</span>
             <div class="result-value small" :class="{ 'negative': parseFloat(profit) < 0 }">
-              {{ profit }} ₼
+              {{ profit || '0.00' }} ₼
             </div>
           </div>
 
@@ -233,6 +293,7 @@ const confirmSave = () => {
   font-weight: 800;
   background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
   filter: drop-shadow(0 0 10px rgba(56, 239, 125, 0.3));

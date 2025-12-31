@@ -171,7 +171,7 @@ const confirmSave = () => {
             <input type="number" v-model="qramaj" placeholder="Məsələn: 80">
           </div>
           <div class="input-group">
-            <label>Adət (Say)</label>
+            <label>Ədəd (Say)</label>
             <input type="number" v-model="say" placeholder="Say daxil edin">
           </div>
           <div class="input-group" v-if="!hideBuyingPrice">
@@ -184,23 +184,23 @@ const confirmSave = () => {
           </div>
         </div>
 
-        <div class="result-box" v-if="totalKilo > 0">
+        <div class="result-box">
           <div class="result-grid">
             <div class="result-item">
               <span class="result-label">Tək yarpaq qramı</span>
-              <div class="result-value secondary">{{ singleSheetWeight.toFixed(2) }} q</div>
+              <div class="result-value secondary">{{ (singleSheetWeight || 0).toFixed(2) }} q</div>
             </div>
             <div class="result-item">
               <span class="result-label">Toplam çəki (kq)</span>
-              <div class="result-value">{{ totalKilo.toFixed(2) }} kq</div>
+              <div class="result-value">{{ (totalKilo || 0).toFixed(2) }} kq</div>
             </div>
             <div class="result-item" v-if="!hideBuyingPrice">
               <span class="result-label">Toplam maliyyət</span>
-              <div class="result-value secondary">{{ totalCost.toFixed(2) }} ₼</div>
+              <div class="result-value secondary">{{ (totalCost || 0).toFixed(2) }} ₼</div>
             </div>
             <div class="result-item" v-if="!hideBuyingPrice">
               <span class="result-label">Toplam mənfəət</span>
-              <div class="result-value highlight" :class="{ 'negative': profit < 0 }">{{ profit.toFixed(2) }} ₼</div>
+              <div class="result-value highlight" :class="{ 'negative': (profit || 0) < 0 }">{{ (profit || 0).toFixed(2) }} ₼</div>
             </div>
           </div>
 
@@ -258,6 +258,7 @@ const confirmSave = () => {
   font-weight: 800;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
   filter: drop-shadow(0 0 10px rgba(118, 75, 162, 0.3));

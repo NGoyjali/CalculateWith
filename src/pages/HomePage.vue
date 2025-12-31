@@ -2,7 +2,7 @@
   <div class="home-page">
     <header class="hero">
       <div class="cosmic-content">
-        <h1 class="glow-text">CalculateWith</h1>
+        <h2 class="glow-text">EngSoft</h2>
         <p>Gələcəyin hesablamaları üçün modern həllər</p>
         <div class="cta-buttons">
           <button @click="router.push('/paper')" class="cta-btn paper">
@@ -29,8 +29,9 @@ const router = useRouter();
   position: relative;
   min-height: calc(100vh - 64px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 2rem;
   overflow: hidden;
   color: white;
 }

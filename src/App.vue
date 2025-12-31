@@ -18,7 +18,7 @@ const isMobileMenuOpen = ref(false);
       </router-view>
     </main>
     <footer class="footer">
-      <p>&copy; 2024 CalculateWith. All rights reserved.</p>
+      <p>&copy; 2024 CalculateWith. Bütün hüquqlar qorunur.</p>
     </footer>
   </div>
 </template>
